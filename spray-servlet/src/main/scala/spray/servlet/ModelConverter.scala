@@ -30,9 +30,9 @@ object ModelConverter {
 
   def toHttpRequest(hsRequest: HttpServletRequest)
                    (implicit settings: ConnectorSettings, log: LoggingAdapter): HttpRequest = {
-    import collection.JavaConverters._
+    import scala.collection.JavaConverters._
     var contentType: ContentType = null
-    var contentLength: Int = 0
+    var contentLength: Option[Int] = None
     val rawHeaders = hsRequest.getHeaderNames.asScala.toList.map { name =>
       val value = hsRequest.getHeaders(name).asScala.mkString(", ")
       val lcName = name.toLowerCase
@@ -43,12 +43,13 @@ object ModelConverter {
             case Left(errorInfo) => throw new IllegalRequestException(BadRequest, errorInfo)
           }
         case "content-length" =>
-          contentLength =
+          contentLength = Some(
             try value.toInt
             catch {
               case e: NumberFormatException =>
                 throw new IllegalRequestException(BadRequest, RequestErrorInfo("Illegal Content-Length", e.getMessage))
             }
+          )
         case _ =>
       }
       RawHeader(lcName, value)
@@ -90,30 +91,50 @@ object ModelConverter {
     HttpProtocols.getForKey(name)
       .getOrElse(throw new IllegalRequestException(BadRequest, "Illegal HTTP protocol", name))
 
-  def toHttpEntity(hsRequest: HttpServletRequest, contentType: ContentType, contentLength: Int)
+  def toHttpEntity(hsRequest: HttpServletRequest, contentType: ContentType, optContentLength: Option[Int])
                   (implicit settings: ConnectorSettings, log: LoggingAdapter): HttpEntity = {
     def body: Array[Byte] = {
-      if (contentLength > 0) {
-        if (contentLength <= settings.MaxContentLength) {
-          try {
-            val buf = new Array[Byte](contentLength)
-            val inputStream = hsRequest.getInputStream
-            var bytesRead = 0
-            while (bytesRead < contentLength) {
-              val count = inputStream.read(buf, bytesRead, contentLength - bytesRead)
-              if (count >= 0) bytesRead += count
-              else throw new RequestProcessingException(InternalServerError, "Illegal Servlet request entity, " +
-                "expected length " + contentLength + " but only has length " + bytesRead)
-            }
-            buf
-          } catch {
-            case e: IOException =>
-              log.error(e, "Could not read request entity")
-              throw new RequestProcessingException(InternalServerError, "Could not read request entity")
+      optContentLength match {
+        case Some(contentLength) =>
+          if (contentLength > 0) {
+            if (contentLength <= settings.MaxContentLength) {
+              try {
+                val buf = new Array[Byte](contentLength)
+                val inputStream = hsRequest.getInputStream
+                var bytesRead = 0
+                while (bytesRead < contentLength) {
+                  val count = inputStream.read(buf, bytesRead, contentLength - bytesRead)
+                  if (count >= 0) bytesRead += count
+                  else throw new RequestProcessingException(InternalServerError, "Illegal Servlet request entity, " +
+                    "expected length " + contentLength + " but only has length " + bytesRead)
+                }
+                buf
+              } catch {
+                case e: IOException =>
+                  log.error(e, "Could not read request entity")
+                  throw new RequestProcessingException(InternalServerError, "Could not read request entity")
+              }
+            } else throw new IllegalRequestException(RequestEntityTooLarge, "HTTP message Content-Length " +
+              contentLength + " exceeds the configured limit of " + settings.MaxContentLength)
+          } else EmptyByteArray
+      
+        case _ => // unknown content length, read up to MaxContentLength bytes
+          val body = new java.io.ByteArrayOutputStream
+          var bytesRead = 0
+          val buffer = new Array[Byte](4096)
+          val inputStream = hsRequest.getInputStream
+          var n = inputStream.read(buffer)
+          while (n != -1) {
+            body.write(buffer, 0, n)
+            bytesRead += n
+            if (bytesRead >= settings.MaxContentLength)
+              throw new IllegalRequestException(RequestEntityTooLarge, "HTTP message exceeds the configured limit of " + 
+                  settings.MaxContentLength)
+            n = inputStream.read(buffer)
           }
-        } else throw new IllegalRequestException(RequestEntityTooLarge, "HTTP message Content-Length " +
-          contentLength + " exceeds the configured limit of " + settings.MaxContentLength)
-      } else EmptyByteArray
+          body.toByteArray
+      }
+      
     }
     if (contentType == null) HttpEntity(body) else HttpBody(contentType, body)
   }
