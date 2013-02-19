@@ -53,7 +53,13 @@ case class HttpBody(contentType: ContentType, buffer: Array[Byte]) extends HttpE
   def toOption = Some(this)
 
   override def toString =
-    "HttpBody(" + contentType + ',' + (if (buffer.length < 50) asString.take(50) + "..." else asString) + ')'
+    "HttpBody(" + contentType + ',' + 
+      (if (contentType.mediaType.binary) {
+        "" + buffer.size + " bytes"
+      } else {
+        if (buffer.length > 50) asString.take(50) + "...(" + buffer.size + " bytes)..." else asString
+      }) + 
+    ')'
 
   override def hashCode = contentType.## * 31 + Arrays.hashCode(buffer)
   override def equals(obj: Any) = obj match {
