@@ -143,6 +143,7 @@ final class HttpRequest private(
   def isRequest = true
   def isResponse = false
 
+  def rawPath  = if (URI.getPath     == null) "" else URI.getRawPath
   def path     = if (URI.getPath     == null) "" else URI.getPath
   def query    = if (URI.getQuery    == null) "" else URI.getQuery
   def rawQuery = if (URI.getRawQuery == null) "" else URI.getRawQuery

@@ -52,7 +52,7 @@ trait HttpService extends Directives {
     var sr: Route = null
     val sealedExceptionHandler = eh orElse ExceptionHandler.default
     def sealedRoute: Route = { if (sr == null) sr = sealRoute(route); sr }
-    def contextFor(req: HttpRequest) = RequestContext(req, ac.sender, req.path).withDefaultSender(ac.self)
+    def contextFor(req: HttpRequest) = RequestContext(req, ac.sender, req.rawPath).withDefaultSender(ac.self)
 
     {
       case request: HttpRequest =>
