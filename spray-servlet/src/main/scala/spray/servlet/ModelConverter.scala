@@ -112,7 +112,24 @@ object ModelConverter {
           }
         } else throw new IllegalRequestException(RequestEntityTooLarge, ErrorInfo("HTTP message Content-Length " +
           contentLength + " exceeds the configured limit of " + settings.maxContentLength))
-      } else EmptyByteArray
+      } else if (contentLength == 0) {
+        EmptyByteArray
+      } else {
+        val body = new java.io.ByteArrayOutputStream
+        var bytesRead = 0
+        val buffer = new Array[Byte](4096)
+        val inputStream = hsRequest.getInputStream
+        var n = inputStream.read(buffer)
+        while (n > -1) {
+          body.write(buffer, 0, n)
+          bytesRead += n
+          if (bytesRead > settings.maxContentLength) {
+            throw new IllegalRequestException(RequestEntityTooLarge, ErrorInfo("HTTP message exceeds the configured limit of " + settings.maxContentLength))
+          }
+          n = inputStream.read(buffer)
+        }
+        body.toByteArray
+      }
     if (contentType.isEmpty) HttpEntity(body) else HttpEntity(contentType.get, body)
   }
 
