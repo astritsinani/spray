@@ -45,7 +45,7 @@ private[parser] trait AuthorizationHeader {
   }
 
   def OAuth2BearerTokenDef = rule {
-    "Bearer" ~ Token ~~> (OAuth2BearerToken(_))
+    "Bearer" ~ oneOrMore(anyOf(Base64.rfc2045.getAlphabet) | anyOf(".-_~=")) ~> (OAuth2BearerToken(_))
   }
 
   def GenericHttpCredentialsDef = rule(
