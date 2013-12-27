@@ -129,6 +129,8 @@ class HttpHeaderSpec extends Specification {
         Authorization(GenericHttpCredentials("Digest", Map("name" -> "Bob")))
       """Authorization: Bearer mF_9.B5f-4.1JqM/""" =!=
         Authorization(OAuth2BearerToken("mF_9.B5f-4.1JqM/"))
+      """Authorization: Bearer test/more==""" =!=
+        Authorization(OAuth2BearerToken("test/more=="))
       "Authorization: NoParamScheme" =!=
         Authorization(GenericHttpCredentials("NoParamScheme", Map.empty[String, String]))
       "Authorization: OAuth sf_v1a-stg;V5DrRS1KfA=" =!=
