@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 spray.io
+ * Copyright © 2011-2013 the spray project <http://spray.io>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,8 @@ trait CachingDirectives {
   def cache(csm: CacheSpecMagnet): Directive0 = cachingProhibited | alwaysCache(csm)
 
   /**
-   * Rejects the request if it doesn't contain a `Cache-Control` header with either a `no-cache` or `max-age=0` setting.
+   * Passes only requests to the inner route that explicitly forbid caching with a `Cache-Control` header with either
+   * a `no-cache` or `max-age=0` setting.
    */
   def cachingProhibited: Directive0 =
     extract(_.request.headers.exists {
@@ -85,9 +86,11 @@ trait CachingDirectives {
     }
   }
 
-  def routeCache(maxCapacity: Int = 500, initialCapacity: Int = 16, timeToLive: Duration = Duration.Zero,
-                 timeToIdle: Duration = Duration.Zero): Cache[RouteResponse] =
+  //# route-Cache
+  def routeCache(maxCapacity: Int = 500, initialCapacity: Int = 16, timeToLive: Duration = Duration.Inf,
+                 timeToIdle: Duration = Duration.Inf): Cache[RouteResponse] =
     LruCache(maxCapacity, initialCapacity, timeToLive, timeToIdle)
+  //#
 }
 
 object CachingDirectives extends CachingDirectives
@@ -99,7 +102,7 @@ trait CacheSpecMagnet {
 }
 
 object CacheSpecMagnet {
-  implicit def apply(cache: Cache[CachingDirectives.RouteResponse])(implicit keyer: CacheKeyer, factory: ActorRefFactory) =
+  implicit def apply(cache: Cache[CachingDirectives.RouteResponse])(implicit keyer: CacheKeyer, factory: ActorRefFactory) = // # CacheSpecMagnet
     new CacheSpecMagnet {
       def responseCache = cache
       def liftedKeyer = keyer.lift

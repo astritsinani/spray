@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 spray.io
+ * Copyright © 2011-2013 the spray project <http://spray.io>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import java.lang.{ StringBuilder ⇒ JStringBuilder }
 import com.typesafe.config.{ ConfigFactory, Config }
 import org.specs2.mutable.Specification
 import akka.actor.ActorSystem
-import akka.util.CompactByteString
+import akka.util.ByteString
 import spray.util.Utils._
 import spray.http.HttpHeaders._
 import spray.http.HttpHeader
@@ -166,6 +166,10 @@ class HttpHeaderParserSpec extends Specification {
       parseAndCache("Host: spray.io:123\r\nx")("HOST: spray.io:123\r\nx") === Host("spray.io", 123)
     }
 
+    "parse and cache an invalid modelled header as RawHeader" in new TestSetup() {
+      parseAndCache("Content-Type: abc:123\r\nx")() === RawHeader("Content-Type", "abc:123")
+    }
+
     "parse and cache a raw header" in new TestSetup(primed = false) {
       insert("hello: bob", 'Hello)
       val (ixA, headerA) = parseLine("Fancy-Pants: foo\r\nx")
@@ -255,10 +259,10 @@ class HttpHeaderParserSpec extends Specification {
       warnOnIllegalHeader = info ⇒ system.log.warning(info.formatPretty),
       unprimed = !primed)
     def insert(line: String, value: AnyRef): Unit =
-      if (parser.isEmpty) parser.insertRemainingCharsAsNewNodes(CompactByteString(line), value)()
-      else parser.insert(CompactByteString(line), value)()
+      if (parser.isEmpty) parser.insertRemainingCharsAsNewNodes(ByteString(line), value)()
+      else parser.insert(ByteString(line), value)()
 
-    def parseLine(line: String) = parser.parseHeaderLine(CompactByteString(line))() -> parser.resultHeader
+    def parseLine(line: String) = parser.parseHeaderLine(ByteString(line))() -> parser.resultHeader
 
     def parseAndCache(lineA: String)(lineB: String = lineA): HttpHeader = {
       val (ixA, headerA) = parseLine(lineA)

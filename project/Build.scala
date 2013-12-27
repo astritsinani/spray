@@ -64,10 +64,12 @@ object Build extends Build {
 
 
   lazy val sprayHttp = Project("spray-http", file("spray-http"))
+    .dependsOn(sprayUtil)
     .settings(sprayModuleSettings: _*)
     .settings(osgiSettings(exports = Seq("spray.http")): _*)
     .settings(libraryDependencies ++=
       compile(parboiled) ++
+      provided(akkaActor) ++
       test(specs2)
     )
 
@@ -79,17 +81,18 @@ object Build extends Build {
       "spray.json.*;resolution := optional",
       "net.liftweb.*;resolution := optional",
       "org.json4s.*;resolution := optional",
-      "twirl.*;resolution := optional"
+      "twirl.*;resolution := optional",
+      "play.*;resolution := optional"
     )): _*)
     .settings(libraryDependencies ++=
       compile(mimepull) ++
-      provided(akkaActor, sprayJson, twirlApi, liftJson, json4sNative, json4sJackson) ++
+      provided(akkaActor, sprayJson, twirlApi, liftJson, json4sNative, json4sJackson, playJson) ++
       test(specs2)
     )
 
 
   lazy val sprayIO = Project("spray-io", file("spray-io"))
-    .dependsOn(sprayUtil)
+    .dependsOn(sprayUtil, sprayHttp)
     .settings(sprayModuleSettings: _*)
     .settings(osgiSettings(exports = Seq("spray.io")): _*)
     .settings(libraryDependencies ++= provided(akkaActor, scalaReflect))

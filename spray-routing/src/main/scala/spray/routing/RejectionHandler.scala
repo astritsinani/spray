@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 spray.io
+ * Copyright © 2011-2013 the spray project <http://spray.io>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,12 +36,12 @@ object RejectionHandler {
   implicit val Default = apply {
     case Nil ⇒ complete(NotFound, "The requested resource could not be found.")
 
-    case AuthenticationFailedRejection(cause, authenticator) :: _ ⇒
+    case AuthenticationFailedRejection(cause, challengeHeaders) :: _ ⇒
       val rejectionMessage = cause match {
         case CredentialsMissing  ⇒ "The resource requires authentication, which was not supplied with the request"
         case CredentialsRejected ⇒ "The supplied authentication is invalid"
       }
-      ctx ⇒ ctx.complete(Unauthorized, authenticator.getChallengeHeaders(ctx.request), rejectionMessage)
+      ctx ⇒ ctx.complete(Unauthorized, challengeHeaders, rejectionMessage)
 
     case AuthorizationFailedRejection :: _ ⇒
       complete(Forbidden, "The supplied authentication is not authorized to access this resource")
@@ -66,6 +66,10 @@ object RejectionHandler {
       val methods = rejections.collect { case MethodRejection(method) ⇒ method }
       complete(MethodNotAllowed, "HTTP method not allowed, supported methods: " + methods.mkString(", "))
 
+    case rejections @ (SchemeRejection(_) :: _) ⇒
+      val schemes = rejections.collect { case SchemeRejection(scheme) ⇒ scheme }
+      complete(BadRequest, "Uri scheme not allowed, supported schemes: " + schemes.mkString(", "))
+
     case MissingCookieRejection(cookieName) :: _ ⇒
       complete(BadRequest, "Request is missing required cookie '" + cookieName + '\'')
 
@@ -82,7 +86,10 @@ object RejectionHandler {
       complete(BadRequest, "Request entity expected but not supplied")
 
     case rejections @ (UnacceptedResponseContentTypeRejection(_) :: _) ⇒
-      val supported = rejections.flatMap { case UnacceptedResponseContentTypeRejection(supported) ⇒ supported }
+      val supported = rejections.flatMap {
+        case UnacceptedResponseContentTypeRejection(supported) ⇒ supported
+        case _ ⇒ Nil
+      }
       complete(NotAcceptable, "Resource representation is only available with these Content-Types:\n" + supported.map(_.value).mkString("\n"))
 
     case rejections @ (UnacceptedResponseEncodingRejection(_) :: _) ⇒

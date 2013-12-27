@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 spray.io
+ * Copyright © 2011-2013 the spray project <http://spray.io>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package spray.http
 package parser
 
 import org.parboiled.scala._
+import spray.util.identityFunc
 import BasicRules._
 import HttpHeaders._
 import ProtectedHeaderCreation.enable
@@ -32,7 +33,7 @@ private[parser] trait SimpleHeaders {
     oneOrMore(Token, separator = ListSep) ~ EOI ~~> (HttpHeaders.Connection(_)))
 
   def `*Content-Length` = rule {
-    oneOrMore(Digit) ~> (s ⇒ `Content-Length`(s.toInt)) ~ EOI
+    oneOrMore(Digit) ~> (s ⇒ `Content-Length`(s.toLong)) ~ EOI
   }
 
   def `*Content-Disposition` = rule {
@@ -61,7 +62,7 @@ private[parser] trait SimpleHeaders {
   }
 
   def `*Location` = rule {
-    oneOrMore(Text) ~> { uri ⇒ Location(Uri.parseAbsolute(uri)) } ~ EOI
+    oneOrMore(Text) ~> { uri ⇒ Location(Uri(uri)) } ~ EOI
   }
 
   def `*Proxy-Authenticate` = rule {
@@ -89,7 +90,7 @@ private[parser] trait SimpleHeaders {
   // were not quoted and that's also what the "Transition" section in the draft says:
   // http://tools.ietf.org/html/draft-ietf-appsawg-http-forwarded-10
   def `*X-Forwarded-For` = rule {
-    oneOrMore((Ip | IPv6Address ~> (HttpIp(_))) ~~> (Some(_)) | "unknown" ~ push(None), separator = ListSep) ~ EOI ~~>
+    oneOrMore(Ip | IPv6Address ~~> (RemoteAddress(_)) | "unknown" ~ push(RemoteAddress.Unknown), separator = ListSep) ~ EOI ~~>
       (`X-Forwarded-For`(_))
   }
 }

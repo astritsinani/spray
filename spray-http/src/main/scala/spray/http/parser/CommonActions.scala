@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 spray.io
+ * Copyright © 2011-2013 the spray project <http://spray.io>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,15 +36,16 @@ private[parser] trait CommonActions {
         case custom        ⇒ multipart(custom, parameters)
       }
       case mainLower ⇒
-        val registered = if (parameters.isEmpty) MediaTypes.getForKey((mainLower, subType.toLowerCase)) else None
-        registered getOrElse MediaType.custom(mainType, subType, parameters = parameters)
+        MediaTypes.getForKey((mainLower, subType.toLowerCase)) match {
+          case Some(registered) ⇒ if (parameters.isEmpty) registered else registered.withParameters(parameters)
+          case None             ⇒ MediaType.custom(mainType, subType, parameters = parameters, allowArbitrarySubtypes = true)
+        }
     }
   }
 
-  val getCharset: String ⇒ HttpCharset = { charsetName ⇒
+  def getCharset(name: String): HttpCharset =
     HttpCharsets
-      .getForKey(charsetName.toLowerCase)
-      .orElse(HttpCharset.custom(charsetName))
-      .getOrElse(throw new ParsingException("Unsupported charset: " + charsetName))
-  }
+      .getForKey(name.toLowerCase)
+      .orElse(HttpCharset.custom(name))
+      .getOrElse(throw new ParsingException("Unsupported charset: " + name))
 }
